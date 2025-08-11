@@ -1,0 +1,37 @@
+services:
+  db:
+    image: mysql:8.1.0
+    container_name: db
+    restart: always
+    networks:
+      - memos_network
+    command:
+      - --default-authentication-plugin=caching_sha2_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --explicit_defaults_for_timestamp=true
+    volumes:
+      - ./mysql:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=memos
+      - MYSQL_DATABASE=memos
+
+  web:
+    image: ghcr.io/usememos/memos:latest
+    container_name: memos
+    restart: always
+    networks:
+      - memos_network
+    volumes:
+      - ./memos_data:/var/opt/memos
+    ports:
+      - "5230:5230"
+    environment:
+      - MEMOS_DRIVER=mysql
+      - MEMOS_DSN=root:memos@tcp(db)/memos
+      - TZ=Asia/Chongqing
+    depends_on:
+      - db
+
+networks:
+  memos_network:
