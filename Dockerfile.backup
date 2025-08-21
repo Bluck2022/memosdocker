@@ -7,11 +7,10 @@ RUN apk add --no-cache \
         tzdata \
         ca-certificates \
         curl && \
-    # 1️⃣ 改为官方“单文件多架构”版本，自动识别架构
-    curl -Lo /usr/local/bin/rclone https://downloads.rclone.org/rclone-current-linux-$(uname -m).zip \
-    && unzip /usr/local/bin/rclone -d /usr/local/bin/ \
-    && chmod +x /usr/local/bin/rclone \
-    && rm -rf /usr/local/bin/rclone-*
-
-COPY backup.sh /backup.sh
-RUN chmod +x /backup.sh
+    # 1. 根据容器内架构一次性下载对应二进制
+    ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; fi && \
+    if [ "$ARCH" = "x86_64" ];  then ARCH="amd64";  fi && \
+    curl -Lo /usr/local/bin/rclone \
+      "https://downloads.rclone.org/v1.70.3/linux-${ARCH}/rclone-v1.70.3-linux-${ARCH}" && \
+    chmod +x /usr/local/bin/rclone
