@@ -7,12 +7,11 @@ RUN apk add --no-cache \
         tzdata \
         ca-certificates \
         curl && \
-    # 下载官方静态编译的 rclone，体积小、兼容性好
-    curl -L https://downloads.rclone.org/rclone-current-linux-amd64.zip -o /tmp/rclone.zip && \
-    unzip /tmp/rclone.zip -d /tmp && \
-    mv /tmp/rclone-*-linux-amd64/rclone /usr/local/bin/ && \
-    chmod +x /usr/local/bin/rclone && \
-    rm -rf /tmp/rclone*
+    # 1️⃣ 改为官方“单文件多架构”版本，自动识别架构
+    curl -Lo /usr/local/bin/rclone https://downloads.rclone.org/rclone-current-linux-$(uname -m).zip \
+    && unzip /usr/local/bin/rclone -d /usr/local/bin/ \
+    && chmod +x /usr/local/bin/rclone \
+    && rm -rf /usr/local/bin/rclone-*
 
 COPY backup.sh /backup.sh
 RUN chmod +x /backup.sh
