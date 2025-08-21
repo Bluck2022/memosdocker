@@ -1,0 +1,18 @@
+FROM alpine:3.20
+
+ENV TZ=Asia/Shanghai
+RUN apk add --no-cache \
+        mysql-client \
+        dcron \
+        tzdata \
+        ca-certificates \
+        curl && \
+    # 下载官方静态编译的 rclone，体积小、兼容性好
+    curl -L https://downloads.rclone.org/rclone-current-linux-amd64.zip -o /tmp/rclone.zip && \
+    unzip /tmp/rclone.zip -d /tmp && \
+    mv /tmp/rclone-*-linux-amd64/rclone /usr/local/bin/ && \
+    chmod +x /usr/local/bin/rclone && \
+    rm -rf /tmp/rclone*
+
+COPY backup.sh /backup.sh
+RUN chmod +x /backup.sh
