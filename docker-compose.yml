@@ -1,37 +1,61 @@
 services:
   db:
     image: mysql:8.1.0
-    container_name: db
-    restart: always
-    networks:
-      - memos_network
-    command:
-      - --default-authentication-plugin=caching_sha2_password
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_general_ci
-      - --explicit_defaults_for_timestamp=true
-    volumes:
-      - ./mysql:/var/lib/mysql
+    container_name: memos-db
+    restart: unless-stopped
+    command: [
+      "--default-authentication-plugin=caching_sha2_password",
+      "--character-set-server=utf8mb4",
+      "--collation-server=utf8mb4_general_ci"
+    ]
     environment:
-      - MYSQL_ROOT_PASSWORD=memos
-      - MYSQL_DATABASE=memos
-
-  web:
-    image: ghcr.io/usememos/memos:latest
-    container_name: memos
-    restart: always
-    networks:
-      - memos_network
+      MYSQL_ROOT_PASSWORD: memosroot
+      MYSQL_DATABASE: memos
+      MYSQL_USER: memos
+      MYSQL_PASSWORD: memospwd
     volumes:
-      - ./memos_data:/var/opt/memos
+      - ./mysql-data:/var/lib/mysql
+    networks:
+      - memos-net
+
+  memos:
+    image: neosmemo/memos:stable
+    container_name: memos
+    restart: unless-stopped
+    depends_on:
+      - db
     ports:
       - "5230:5230"
     environment:
-      - MEMOS_DRIVER=mysql
-      - MEMOS_DSN=root:memos@tcp(db)/memos
-      - TZ=Asia/Chongqing
+      MEMOS_DRIVER: mysql
+      MEMOS_DSN: "memos:memospwd@tcp(db)/memos?charset=utf8mb4&parseTime=true"
+      TZ: Asia/Shanghai
+    volumes:
+      - ./memos-data:/var/opt/memos
+    networks:
+      - memos-net
+
+  # 自动备份容器
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup   # 见下文
+    container_name: memos-backup
+    restart: unless-stopped
     depends_on:
       - db
+    volumes:
+      - ./backup:/backup               # 本地目录
+      - ./rclone.conf:/root/.config/rclone/rclone.conf:ro
+    environment:
+      MYSQL_ROOT_PASSWORD: memosroot   # 与 db 服务保持一致
+    command: |
+      sh -c "
+      echo '0 3 * * * /backup.sh >>/var/log/cron.log 2>&1' | crontab - &&
+      crond -f
+      "
+    networks:
+      - memos-net
 
 networks:
-  memos_network:
+  memos-net:
