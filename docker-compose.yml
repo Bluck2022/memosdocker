@@ -50,7 +50,7 @@ services:
       - db
     volumes:
       - ./backup:/backup
-      - ./rclone.conf:/root/.config/rclone/rclone.conf:ro
+      - ./rclone.conf:/tmp/rclone.conf:ro
     environment:
       MYSQL_ROOT_PASSWORD: memosroot
     command: |
