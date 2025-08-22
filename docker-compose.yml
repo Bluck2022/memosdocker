@@ -3,10 +3,15 @@ services:
     image: mysql:8.1.0
     container_name: memos-db
     restart: unless-stopped
-    command:
-      - "--default-authentication-plugin=caching_sha2_password"
-      - "--character-set-server=utf8mb4"
-      - "--collation-server=utf8mb4_general_ci"
+    command: [
+      "--default-authentication-plugin=caching_sha2_password",
+      "--character-set-server=utf8mb4",
+      "--collation-server=utf8mb4_general_ci",
+      "--innodb-buffer-pool-size=128M",
+      "--innodb-log-file-size=32M",
+      "--innodb-flush-log-at-trx-commit=2",
+      "--sync-binlog=0"
+    ]
     environment:
       MYSQL_ROOT_PASSWORD: memosroot
       MYSQL_DATABASE: memos
@@ -34,6 +39,7 @@ services:
     networks:
       - memos-net
 
+  # 自动备份容器
   backup:
     build:
       context: .
@@ -43,9 +49,15 @@ services:
     depends_on:
       - db
     volumes:
+      - ./backup:/backup
       - ./rclone.conf:/root/.config/rclone/rclone.conf:ro
     environment:
       MYSQL_ROOT_PASSWORD: memosroot
+    command: |
+      sh -c "
+        echo '0 3 * * * /backup.sh >>/var/log/cron.log 2>&1' | crontab - &&
+        crond -f
+      "
     networks:
       - memos-net
 
