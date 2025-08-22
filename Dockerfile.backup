@@ -1,17 +1,36 @@
 FROM alpine:3.20
 
 ENV TZ=Asia/Shanghai
-RUN apk add --no-cache mysql-client dcron tzdata ca-certificates curl && \
-    ARCH=$(uname -m) && \
-    if [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; fi && \
-    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi && \
-    curl -Lo /usr/local/bin/rclone \
-      "https://downloads.rclone.org/v1.70.3/linux-${ARCH}/rclone-v1.70.3-linux-${ARCH}" && \
-    chmod +x /usr/local/bin/rclone
 
+RUN apk add --no-cache \
+    mysql-client \
+    dcron \
+    tzdata \
+    ca-certificates \
+    curl unzip && \
+    # 检测架构并下载对应的 rclone
+    ARCH=$(uname -m) && \
+    echo "Detected architecture: $ARCH" && \
+    if [ "$ARCH" = "aarch64" ]; then \
+        RCLONE_ARCH="arm64"; \
+    elif [ "$ARCH" = "x86_64" ]; then \
+        RCLONE_ARCH="amd64"; \
+    else \
+        RCLONE_ARCH="$ARCH"; \
+    fi && \
+    echo "Using rclone architecture: $RCLONE_ARCH" && \
+    cd /tmp && \
+    curl -Lo rclone.zip "https://downloads.rclone.org/v1.70.3/rclone-v1.70.3-linux-${RCLONE_ARCH}.zip" && \
+    unzip -q rclone.zip && \
+    find . -name "rclone" -type f -exec cp {} /usr/local/bin/ \; && \
+    chmod +x /usr/local/bin/rclone && \
+    rm -rf /tmp/rclone* && \
+    # 创建必要的目录
+    mkdir -p /backup /var/log
+
+# 复制备份脚本
 COPY backup.sh /backup.sh
 RUN chmod +x /backup.sh
 
-# 每天 03:00 执行一次
-RUN echo '0 3 * * * /backup.sh >>/var/log/cron.log 2>&1' | crontab -
-CMD ["crond", "-f"]
+# 验证 rclone 安装
+RUN rclone version
